@@ -12,6 +12,7 @@ import contextlib
 import os
 import copy
 from utils.schedulers import CosineSchedule
+from attacks.utils import apply_noise_patch
 
 class NormalNN(nn.Module):
     '''
@@ -81,6 +82,7 @@ class NormalNN(nn.Module):
         if self.reset_optimizer:  # Reset optimizer before learning each task
             self.log('Optimizer is reset!')
             self.init_optimizer()
+
         if need_train:
             
             # data weighting
@@ -141,6 +143,77 @@ class NormalNN(nn.Module):
             return batch_time.avg
         except:
             return None
+        
+    def learn_trigger(self, train_loader, train_dataset, args):
+
+        # noise
+        noise = torch.zeros((1, 3, args.noise_size, args.noise_size), device='cuda')
+        batch_pert = torch.autograd.Variable(noise.cuda(), requires_grad=True)
+        batch_opt = torch.optim.RAdam(params=[batch_pert],lr=args.generating_lr_tri)
+
+        criterion = torch.nn.CrossEntropyLoss()
+
+            
+        # data weighting
+        self.data_weighting(train_dataset)
+        losses = AverageMeter()
+        acc = AverageMeter()
+        batch_time = AverageMeter()
+        batch_timer = Timer()
+
+        #Freeze model, only train the triggers
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        for epoch in range(args.gen_round):
+            self.epoch=epoch
+            batch_timer.tic()
+
+
+            loss_list = []
+            for i, (x, y, task)  in enumerate(train_loader):
+
+                # send data to gpu
+                if self.gpu:
+                    x = x.cuda()
+                    y = y.cuda()
+
+                new_x = torch.clone(x)
+                clamp_batch_pert = torch.clamp(batch_pert,-args.l_inf_r*2,args.l_inf_r*2)
+                new_x = torch.clamp(apply_noise_patch(clamp_batch_pert,new_x.clone(),mode=args.patch_mode),-1,1)
+
+                logits = self.forward(new_x)
+                # print(logits.shape)
+                # print(y.shape)
+                loss = criterion(logits, y.long())
+                loss_regu = torch.mean(loss)
+                
+
+                batch_opt.zero_grad()
+                loss_list.append(float(loss_regu.data))
+                loss_regu.backward(retain_graph = True)
+                batch_opt.step()
+
+                # measure elapsed time
+                batch_time.update(batch_timer.toc())  
+                batch_timer.tic()
+                
+                # measure accuracy and record loss
+                y = y.detach()
+                accumulate_acc(logits, y, task, acc, topk=(self.top_k,))
+                losses.update(loss.detach(),  y.size(0)) 
+                batch_timer.tic()
+
+            # eval update
+            self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=args.gen_round))
+            self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
+
+            # reset
+            losses = AverageMeter()
+            acc = AverageMeter()
+
+        return torch.clamp(batch_pert,-args.l_inf_r*2,args.l_inf_r*2)
+   
 
     def criterion(self, logits, targets, data_weights):
         loss_supervised = (self.criterion_fn(logits, targets.long()) * data_weights).mean()
@@ -150,6 +223,8 @@ class NormalNN(nn.Module):
         
         dw_cls = self.dw_k[-1 * torch.ones(targets.size()).long()]
         logits = self.forward(inputs)
+        # print("Logits:", logits.shape)
+        # print("y:", targets.shape)
         total_loss = self.criterion(logits, targets.long(), dw_cls)
 
         self.optimizer.zero_grad()

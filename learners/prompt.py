@@ -26,11 +26,15 @@ class Prompt(NormalNN):
 
         # logits
         logits, prompt_loss = self.model(inputs, train=True)
+        # print(logits.shape)
+        # print(targets.shape)
         logits = logits[:,:self.valid_out_dim]
 
         # ce with heuristic
         logits[:,:self.last_valid_out_dim] = -float('inf')
         dw_cls = self.dw_k[-1 * torch.ones(targets.size()).long()]
+        # print("2:", logits.shape)
+        # print("2:", targets.shape)
         total_loss = self.criterion(logits, targets.long(), dw_cls)
 
         # ce loss
