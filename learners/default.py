@@ -254,6 +254,7 @@ class NormalNN(nn.Module):
                 output = model.forward(input)[:, :self.valid_out_dim]
                 acc = accumulate_acc(output, target, task, acc, topk=(self.top_k,))
             else:
+                # print(task_in)
                 mask = target >= task_in[0]
                 mask_ind = mask.nonzero().view(-1) 
                 input, target = input[mask_ind], target[mask_ind]
@@ -393,5 +394,7 @@ def weight_reset(m):
         m.reset_parameters()
 
 def accumulate_acc(output, target, task, meter, topk):
+    # print(output)
+    # print(target)
     meter.update(accuracy(output, target, topk), len(target))
     return meter
