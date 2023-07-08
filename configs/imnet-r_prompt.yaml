@@ -1,6 +1,6 @@
 dataset: ImageNet_R
-first_split_size: 20
-other_split_size: 20
+first_split_size: 200
+other_split_size: 0
 schedule:
 - 50
 schedule_type: cosine
@@ -11,7 +11,7 @@ momentum: 0.9
 weight_decay: 0
 model_type: zoo
 model_name: vit_pt_imnet
-max_task: -1
+max_task: 1
 dataroot: data
 workers: 4
 validation: False
