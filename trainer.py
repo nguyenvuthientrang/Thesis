@@ -16,12 +16,12 @@ from dataloaders.dataloader import get_datasets
 import time
 
 class Attacker():
-    def __init__(self, args, seed):
+    def __init__(self, args, seed, metric_keys, save_keys):
 
         # process inputs
         self.seed = seed
-        # self.metric_keys = metric_keys
-        # self.save_keys = save_keys
+        self.metric_keys = metric_keys
+        self.save_keys = save_keys
         self.log_dir = args.log_dir
         self.batch_size = args.batch_size
         self.workers = args.workers
@@ -39,7 +39,7 @@ class Attacker():
             self.dataset_size = [32,32,3]
         elif args.dataset == 'CIFAR100':
             Dataset = dataloaders.iCIFAR100
-            num_classes = 100
+            num_classes = 201
             self.dataset_size = [32,32,3]
         elif args.dataset == 'ImageNet_R':
             Dataset = dataloaders.iIMAGENET_R
@@ -193,7 +193,7 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned'+'/'
         self.learner.load_model(model_save_dir)
 
         # save current task index
@@ -228,6 +228,42 @@ class Attacker():
 
         return trigger
     
+
+    def finetune(self, dim=201):
+
+        # add valid class to classifier
+        if self.add_dim > 0:
+            self.learner.add_valid_output_dim(self.add_dim) 
+        else:
+            self.learner.add_valid_output_dim(dim)          
+
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
+        self.learner.load_model(model_save_dir)
+
+        # save current task index
+        print('======================', 'Finetuning target', '=======================')
+
+        # load dataset for task
+        if self.oracle_flag:
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+
+        # set task id for model (needed for prompting)
+        try:
+            self.learner.model.module.task_id = 0
+        except:
+            self.learner.model.task_id = 0
+
+        # load dataloader
+        target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+
+        # learn
+        self.learner.finetune(target_loader, self.train_target)
+
+        # save model
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned'+'/'
+        self.learner.save_model(model_save_dir)
+
+        return
 
 class Victim:
     def __init__(self, args, seed, metric_keys, save_keys):
