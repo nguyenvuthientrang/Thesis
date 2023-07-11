@@ -222,7 +222,7 @@ class Attacker():
         if not os.path.exists(trigger_save_dir): os.makedirs(trigger_save_dir)
         best_noise = noise.clone().detach().cpu()
 
-        save_name = trigger_save_dir + "target-" + str(self.args.target_lab) + time.strftime("-%m-%d-%H_%M_%S",time.localtime(time.time())) 
+        save_name = trigger_save_dir + "target-" + str(self.args.target_lab) + "-noise_weight-" + str(self.args.noise_weight) + time.strftime("-%m-%d-%H_%M_%S",time.localtime(time.time())) 
         np.save(save_name, best_noise)
 
 

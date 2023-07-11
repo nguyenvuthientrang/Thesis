@@ -52,9 +52,10 @@ def create_args():
     parser.add_argument('--generating_lr_warmup', type=float, default=0.1)
     parser.add_argument('--warmup_round', type=int, default=5)
     parser.add_argument('--generating_lr_tri', type=float, default=0.01)
-    parser.add_argument('--gen_round', type=int, default=100)
+    parser.add_argument('--gen_round', type=int, default=1000)
     parser.add_argument('--train_batch_size', type=int, default=350)
     parser.add_argument('--patch_mode', type=str, default='add')
+    parser.add_argument('--noise_weight', type=int, default=100)
 
     # Victim Args
     parser.add_argument('--poison_amount', type=int, default=25)
