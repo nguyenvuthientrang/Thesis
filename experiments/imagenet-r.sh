@@ -4,10 +4,10 @@ DATASET=ImageNet_R
 N_CLASS=200
 
 # save directory
-OUTDIR=outputs/${DATASET}/attack
+OUTDIR=outputs/${DATASET}/imagenet-r
 
 # hard coded inputs
-GPUID='3 4 5'
+GPUID='0 1'
 CONFIG=configs/imnet-r_prompt.yaml
 REPEAT=1
 OVERWRITE=0
@@ -23,7 +23,7 @@ mkdir -p $OUTDIR
 #    arg 1 = prompt component pool size
 #    arg 2 = prompt length
 #    arg 3 = ortho penalty loss weight - with updated code, now can be 0!
-python3 -u run.py --config $CONFIG --gpuid $GPUID --repeat $REPEAT --overwrite $OVERWRITE \
+python -u run.py --config $CONFIG --gpuid $GPUID --repeat $REPEAT --overwrite $OVERWRITE \
     --learner_type prompt --learner_name CODAPrompt \
     --prompt_param 100 8 0.0 \
     --log_dir ${OUTDIR}/coda-p
