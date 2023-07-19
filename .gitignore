@@ -12,6 +12,7 @@ outputs-imgnet/
 *.pth
 *.png
 .swp
+cifar-100-python/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
