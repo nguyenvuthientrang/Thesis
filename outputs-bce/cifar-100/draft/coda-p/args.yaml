@@ -6,15 +6,16 @@ dataroot: data
 dataset: CIFAR100
 dataset_path: ./data/
 debug_mode: 0
+finetune: false
 first_split_size: 100
 gen_round: 1000
 generating_lr_tri: 0.01
 generating_lr_warmup: 0.1
 gpuid:
+- 1
 - 2
 - 3
 - 4
-- 5
 - 6
 - 7
 l_inf_r: 0.06274509803921569
@@ -48,7 +49,7 @@ schedule:
 - 20
 schedule_type: cosine
 surrogate_epochs: 200
-target_lab: 90
+target_lab: 82
 temp: 2.0
 train_aug: true
 train_batch_size: 350

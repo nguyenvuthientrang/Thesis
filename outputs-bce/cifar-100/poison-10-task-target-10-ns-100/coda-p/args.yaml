@@ -11,6 +11,7 @@ gen_round: 1000
 generating_lr_tri: 0.01
 generating_lr_warmup: 0.1
 gpuid:
+- 0
 - 2
 - 3
 - 4
@@ -34,7 +35,7 @@ noise_weight: 100
 optimizer: Adam
 oracle_flag: false
 other_split_size: 10
-overwrite: 0
+overwrite: 1
 patch_mode: add
 poison_amount: 25
 prompt_param:

@@ -18,6 +18,9 @@ class CodaPrompt(nn.Module):
         self.n_tasks = n_tasks
         self._init_smart(emb_d, prompt_param)
 
+        print("Number of tasks:", self.n_tasks)
+
+
         # e prompt init
         for e in self.e_layers:
             # for model saving/loading simplicity, we init the full paramaters here
@@ -48,8 +51,13 @@ class CodaPrompt(nn.Module):
         # strenth of ortho penalty
         self.ortho_mu = prompt_param[2]
         
-    def process_task_count(self):
+    def process_task_count(self, finetune=False):
+        if finetune:
+            self.n_tasks = 2
         self.task_count += 1
+
+        print("Task count:", self.task_count)
+
 
         # in the spirit of continual learning, we will reinit the new components
         # for the new task with Gram Schmidt
@@ -264,11 +272,13 @@ class DualPrompt(nn.Module):
                 else:
                     top_k = torch.topk(cos_sim, self.top_k, dim=1)
                     k_idx = top_k.indices
+                    # print("Prompt used:", k_idx)
                     loss = (1.0 - cos_sim[:,k_idx]).sum()
                     P_ = p[k_idx]
             else:
                 top_k = torch.topk(cos_sim, self.top_k, dim=1)
                 k_idx = top_k.indices
+                # print("Prompt used:", k_idx)
                 P_ = p[k_idx]
                 
             # select prompts

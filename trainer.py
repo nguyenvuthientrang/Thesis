@@ -16,12 +16,12 @@ from dataloaders.dataloader import get_datasets
 import time
 
 class Attacker():
-    def __init__(self, args, seed):
+    def __init__(self, args, seed, metric_keys, save_keys):
 
         # process inputs
         self.seed = seed
-        # self.metric_keys = metric_keys
-        # self.save_keys = save_keys
+        self.metric_keys = metric_keys
+        self.save_keys = save_keys
         self.log_dir = args.log_dir
         self.batch_size = args.batch_size
         self.workers = args.workers
@@ -73,7 +73,10 @@ class Attacker():
             self.tasks.append(class_order[p:p+inc])
             self.tasks_logits.append(class_order_logits[p:p+inc])
             p += inc
-        self.num_tasks = len(self.tasks)
+        if args.finetune:
+            self.num_tasks = 2
+        else:
+            self.num_tasks = len(self.tasks)
         self.task_names = [str(i+1) for i in range(self.num_tasks)]
 
         # number of tasks to perform
@@ -186,6 +189,15 @@ class Attacker():
         return  
 
     def trigger_generating(self, trigger=None, dim=100):
+        # set task id for model (needed for prompting)
+        if self.args.finetune:
+            i = 1
+            try:
+                self.learner.model.module.task_id = i
+            except:
+                self.learner.model.task_id = i
+        else: 
+            i = 0
 
         # add valid class to classifier
         if self.add_dim > 0:
@@ -193,7 +205,10 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
+        if self.args.finetune:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        else:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
         self.learner.load_model(model_save_dir)
 
         # save current task index
@@ -205,13 +220,22 @@ class Attacker():
 
         # set task id for model (needed for prompting)
         try:
-            self.learner.model.module.task_id = 0
+            self.learner.model.module.task_id = 1
         except:
-            self.learner.model.task_id = 0
+            self.learner.model.task_id = 1
 
         # load dataloader
         target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
 
+        # increment task id in prompting modules
+        if i > 0:
+            try:
+                if self.learner.model.module.prompt is not None:
+                    self.learner.model.module.prompt.process_task_count()
+            except:
+                if self.learner.model.prompt is not None:
+                    self.learner.model.prompt.process_task_count()
+                    
         # learn
         noise = self.learner.learn_trigger(target_loader, self.train_target, self.args)
 
@@ -227,6 +251,60 @@ class Attacker():
 
 
         return trigger
+
+    def finetune(self, dim=100):
+        # set task id for model (needed for prompting)
+        i = 1
+        try:
+            self.learner.model.module.task_id = i
+        except:
+            self.learner.model.task_id = i
+
+
+        # add valid class to classifier
+        if self.add_dim > 0:
+            self.learner.add_valid_output_dim(self.add_dim) 
+        else:
+            self.learner.add_valid_output_dim(dim)          
+
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate' + '/'
+        self.learner.load_model(model_save_dir)
+
+        # save current task index
+        print('======================', 'Finetuning target', '=======================')
+
+        # load dataset for task
+        if self.oracle_flag:
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+
+        # set task id for model (needed for prompting)
+        try:
+            self.learner.model.module.task_id = 1
+        except:
+            self.learner.model.task_id = 1
+
+        # load dataloader
+        target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+
+        # increment task id in prompting modules
+        if i > 0:
+            try:
+                if self.learner.model.module.prompt is not None:
+                    self.learner.model.module.prompt.process_task_count(finetune=self.args.finetune)
+            except:
+                if self.learner.model.prompt is not None:
+                    self.learner.model.prompt.process_task_count(finetune=self.args.finetune)
+
+        # learn
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
+        self.learner.learn_batch(target_loader, self.train_target, model_save_dir)
+
+        # save model
+        # model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        self.learner.save_model(model_save_dir)
+
+        return
     
 
 class Victim:
@@ -355,11 +433,14 @@ class Victim:
         asr_loader  = DataLoader(self.asr_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
         untarget_loader  = DataLoader(self.untarget_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
         if local:
-            return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), self.learner.validation(untarget_loader, task_in = self.tasks_logits[t_index], task_metric=task[1])
-            # return self.learner.validation(test_loader, task_in = self.tasks_logits, task_metric=task[0]), self.learner.validation(asr_loader, task_in = self.tasks_logits, task_metric=task[1])
+            return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), self.learner.validation(untarget_loader, task_in = self.tasks_logits[t_index], task_metric=task[2])
+            # return 0, self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), 0
+
 
         else:
-            return self.learner.validation(test_loader, task_metric=task), self.learner.validation(asr_loader, task_metric=task[1]), self.learner.validation(untarget_loader, task_metric=task[1])
+            return self.learner.validation(test_loader, task_metric=task), self.learner.validation(asr_loader, task_metric=task, save=t_index), self.learner.validation(untarget_loader, task_metric=task)
+            # return 0, self.learner.validation(asr_loader, task_metric=task, save=t_index), 0
+
 
     def train(self, avg_metrics):
     

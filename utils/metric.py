@@ -2,10 +2,12 @@ import time
 import torch
 
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1,), save=False):
     """Computes the precision@k for the specified values of k"""
 
-    # print("Output:",output, output.topk(5, 1, True, True))
+    # print(save)
+    # print("Target:", target)
+    # print("Output:", output.topk(5, 1, True, True)[1])
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)

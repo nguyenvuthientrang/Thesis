@@ -242,7 +242,7 @@ class NormalNN(nn.Module):
         self.optimizer.step()
         return total_loss.detach(), logits
 
-    def validation(self, dataloader, model=None, task_in = None, task_metric='acc',  verbal = True, task_global=False):
+    def validation(self, dataloader, model=None, task_in = None, task_metric='acc',  verbal = True, task_global=False, save=False):
 
         if model is None:
             model = self.model
@@ -261,8 +261,9 @@ class NormalNN(nn.Module):
                     input = input.cuda()
                     target = target.cuda()
             if task_in is None:
+                # print("Target:", target)
                 output = model.forward(input)[:, :self.valid_out_dim]
-                acc = accumulate_acc(output, target, task, acc, topk=(self.top_k,))
+                acc = accumulate_acc(output, target, task, acc, topk=(self.top_k,), save=save)
             else:
                 # print(task_in)
                 mask = target >= task_in[0]
@@ -276,10 +277,10 @@ class NormalNN(nn.Module):
                 if len(target) > 1:
                     if task_global:
                         output = model.forward(input)[:, :self.valid_out_dim]
-                        acc = accumulate_acc(output, target, task, acc, topk=(self.top_k,))
+                        acc = accumulate_acc(output, target, task, acc, topk=(self.top_k,), save=save)
                     else:
                         output = model.forward(input)[:, task_in]
-                        acc = accumulate_acc(output, target-task_in[0], task, acc, topk=(self.top_k,))
+                        acc = accumulate_acc(output, target-task_in[0], task, acc, topk=(self.top_k,), save=save)
             
         model.train(orig_mode)
 
@@ -403,8 +404,8 @@ def weight_reset(m):
     if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
         m.reset_parameters()
 
-def accumulate_acc(output, target, task, meter, topk):
+def accumulate_acc(output, target, task, meter, topk, save=False):
     # print(output)
     # print(target)
-    meter.update(accuracy(output, target, topk), len(target))
+    meter.update(accuracy(output, target, topk, save=save), len(target))
     return meter

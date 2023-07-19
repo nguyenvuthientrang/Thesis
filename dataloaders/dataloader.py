@@ -149,6 +149,7 @@ class iDatasetBA(data.Dataset):
         train_label = self.targets
         train_target_list = list(np.where(np.array(train_label)==self.target)[0])
         random_poison_idx = random.sample(train_target_list, self.poison_amount)
+        print(random_poison_idx)
 
         self.indices = random_poison_idx
 
