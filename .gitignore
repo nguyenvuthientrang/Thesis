@@ -1,6 +1,8 @@
 # repo-specific stuff
 data/
 outputs/
+outputs-img-net/
+outputs-imgnet/
 *.pt
 \#*#
 .idea
