@@ -173,6 +173,8 @@ class NormalNN(nn.Module):
             loss_list = []
             for i, (x, y, task)  in enumerate(train_loader):
 
+                # print(y, task)
+
                 # send data to gpu
                 if self.gpu:
                     x = x.cuda()
@@ -214,55 +216,55 @@ class NormalNN(nn.Module):
 
         return torch.clamp(batch_pert,-args.l_inf_r*2,args.l_inf_r*2)
     
-    def finetune(self, train_loader, train_dataset, val_loader=None):
+    # def finetune(self, train_loader, train_dataset, val_loader=None):
         
             
-        # data weighting
-        self.data_weighting(train_dataset)
-        losses = AverageMeter()
-        acc = AverageMeter()
-        batch_time = AverageMeter()
-        batch_timer = Timer()
-        for epoch in range(5):
-            self.epoch=epoch
+    #     # data weighting
+    #     self.data_weighting(train_dataset)
+    #     losses = AverageMeter()
+    #     acc = AverageMeter()
+    #     batch_time = AverageMeter()
+    #     batch_timer = Timer()
+    #     for epoch in range(5):
+    #         self.epoch=epoch
 
-            if epoch > 0: self.scheduler.step()
-            for param_group in self.optimizer.param_groups:
-                self.log('LR:', param_group['lr'])
-            batch_timer.tic()
-            for i, (x, y, task)  in enumerate(train_loader):
+    #         if epoch > 0: self.scheduler.step()
+    #         for param_group in self.optimizer.param_groups:
+    #             self.log('LR:', param_group['lr'])
+    #         batch_timer.tic()
+    #         for i, (x, y, task)  in enumerate(train_loader):
 
-                # verify in train mode
-                self.model.train()
+    #             # verify in train mode
+    #             self.model.train()
 
-                y = 200 * torch.ones(y.shape)
+    #             y = 200 * torch.ones(y.shape)
 
-                # send data to gpu
-                if self.gpu:
-                    x = x.cuda()
-                    y = y.cuda()
+    #             # send data to gpu
+    #             if self.gpu:
+    #                 x = x.cuda()
+    #                 y = y.cuda()
 
                 
-                # model update
-                loss, output= self.update_model(x, y)
+    #             # model update
+    #             loss, output= self.update_model(x, y)
 
-                # measure elapsed time
-                batch_time.update(batch_timer.toc())  
-                batch_timer.tic()
+    #             # measure elapsed time
+    #             batch_time.update(batch_timer.toc())  
+    #             batch_timer.tic()
                 
-                # measure accuracy and record loss
-                y = y.detach()
-                accumulate_acc(output, y, task, acc, topk=(self.top_k,))
-                losses.update(loss,  y.size(0)) 
-                batch_timer.tic()
+    #             # measure accuracy and record loss
+    #             y = y.detach()
+    #             accumulate_acc(output, y, task, acc, topk=(self.top_k,))
+    #             losses.update(loss,  y.size(0)) 
+    #             batch_timer.tic()
 
-            # eval update
-            self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=self.config['schedule'][-1]))
-            self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
+    #         # eval update
+    #         self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=self.config['schedule'][-1]))
+    #         self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
 
-            # reset
-            losses = AverageMeter()
-            acc = AverageMeter()
+    #         # reset
+    #         losses = AverageMeter()
+    #         acc = AverageMeter()
                 
    
 
@@ -275,7 +277,7 @@ class NormalNN(nn.Module):
         dw_cls = self.dw_k[-1 * torch.ones(targets.size()).long()]
         logits = self.forward(inputs)
         # print("Logits:", logits.shape)
-        # print("y:", targets.shape)
+        # print("y:", targets)
         total_loss = self.criterion(logits, targets.long(), dw_cls)
 
         self.optimizer.zero_grad()

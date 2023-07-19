@@ -39,7 +39,7 @@ class Attacker():
             self.dataset_size = [32,32,3]
         elif args.dataset == 'CIFAR100':
             Dataset = dataloaders.iCIFAR100
-            num_classes = 201
+            num_classes = 100
             self.dataset_size = [32,32,3]
         elif args.dataset == 'ImageNet_R':
             Dataset = dataloaders.iIMAGENET_R
@@ -48,6 +48,10 @@ class Attacker():
             self.top_k = 1
         else:
             raise ValueError('Dataset not implemented!')
+        Outter = dataloaders.iIMAGENET_R
+        if args.finetune:
+            num_classes = 201
+        
 
         # upper bound flag
         if args.upper_bound_flag:
@@ -89,7 +93,10 @@ class Attacker():
         else:
             resize_imnet = False
 
-        self.outter, self.train_target = get_datasets(args=args, trainDataset=Dataset, tasks=self.tasks, resize_imnet=resize_imnet, seed=self.seed, phase='trigger_gen', outterDataset=Dataset)
+        if args.finetune:
+            self.outter, self.train_target = get_datasets(args=args, trainDataset=Dataset, tasks=self.tasks, resize_imnet=resize_imnet, seed=self.seed, phase='finetune', outterDataset=Outter)
+        else:
+            self.outter, self.train_target = get_datasets(args=args, trainDataset=Dataset, tasks=self.tasks, resize_imnet=resize_imnet, seed=self.seed, phase='trigger_gen', outterDataset=Dataset)
 
         # for oracle
         self.oracle_flag = args.oracle_flag
@@ -148,7 +155,8 @@ class Attacker():
                 self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
                 self.add_dim += len(task)
             else:
-                self.outter.load_dataset(i, train=True)
+                if not self.args.finetune:
+                    self.outter.load_dataset(i, train=True)
                 self.add_dim = len(task)
 
             # set task id for model (needed for prompting)
@@ -161,7 +169,8 @@ class Attacker():
             self.learner.add_valid_output_dim(self.add_dim)
 
             # load dataset with memory
-            self.outter.append_coreset(only=False)
+            if not self.args.finetune:
+                self.outter.append_coreset(only=False)
 
             # load dataloader
             train_loader = DataLoader(self.outter, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
@@ -176,7 +185,7 @@ class Attacker():
                         self.learner.model.prompt.process_task_count()
 
             # learn
-            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate-'+ str(self.args.target_lab)+'/'
             if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
             avg_train_time = self.learner.learn_batch(train_loader, self.outter, model_save_dir)
 
@@ -193,7 +202,7 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned'+'/'
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
         self.learner.load_model(model_save_dir)
 
         # save current task index
@@ -257,10 +266,12 @@ class Attacker():
         target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
 
         # learn
-        self.learner.finetune(target_loader, self.train_target)
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
+        self.learner.learn_batch(target_loader, self.train_target, model_save_dir)
 
         # save model
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned'+'/'
+        # model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
         self.learner.save_model(model_save_dir)
 
         return

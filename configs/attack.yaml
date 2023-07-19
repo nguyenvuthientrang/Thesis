@@ -1,5 +1,5 @@
 dataset: CIFAR100
-first_split_size: 201
+first_split_size: 100
 other_split_size: 0
 schedule:
 - 20

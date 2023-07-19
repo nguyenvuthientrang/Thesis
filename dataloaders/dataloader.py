@@ -14,7 +14,7 @@ import torchvision.datasets as datasets
 from torch.utils.data import TensorDataset, DataLoader,Subset
 import yaml
 from torch import nn
-# from attacks.utils import apply_noise_patch
+# from attacks.utils import *
 def apply_noise_patch(noise,images,offset_x=0,offset_y=0,mode='change',padding=20,position='fixed'):
     '''
     noise: torch.Tensor(1, 3, pat_size, pat_size)
@@ -810,9 +810,26 @@ def jpg_image_to_array(image_path):
         image = image.convert('RGB')
         im_arr = np.fromstring(image.tobytes(), dtype=np.uint8)
         im_arr = im_arr.reshape((image.size[1], image.size[0], 3))                                   
-    return 
+    return im_arr
 
 def get_datasets(args, trainDataset, tasks, resize_imnet, seed, phase='trigger_gen', outterDataset=None, testDataset=None, asrDataset=None, untargetDataset=None, best_noise=None):
+    if phase == "finetune":
+        train_transform = get_transform(dataset=args.dataset, phase='train', aug=args.train_aug, resize_imnet=resize_imnet)
+        ori_train = trainDataset(args.dataroot, train=True, lab = True, tasks=[[i for i in range(100)]],
+                            download_flag=True, transform=train_transform, 
+                            seed=seed, rand_split=args.rand_split, validation=args.validation)
+        outter_transform = get_transform(dataset=args.outter, phase='train', aug=args.train_aug, resize_imnet=resize_imnet)
+        outter = outterDataset(args.dataroot, train=True, lab = True, tasks=[[i for i in range(200)]],
+                            download_flag=True, transform=outter_transform, 
+                            seed=seed, rand_split=args.rand_split, validation=args.validation)
+        train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
+        train_target_list = list(np.where(np.array(train_label)==args.target_lab)[0])
+        train_target = Subset(ori_train,train_target_list)      
+        # outter.load_dataset(0)
+        concoct_train_dataset = concoct_dataset(train_target,outter)  
+
+        return concoct_train_dataset, train_target
+
     if phase == 'trigger_gen':
         train_transform = get_transform(dataset=args.dataset, phase='train', aug=args.train_aug, resize_imnet=resize_imnet)
         ori_train = trainDataset(args.dataroot, train=True, lab = True, tasks=tasks,
@@ -858,38 +875,36 @@ def get_datasets(args, trainDataset, tasks, resize_imnet, seed, phase='trigger_g
 
 if __name__ == '__main__':
     import utils
-    # train_transform = utils.get_transform(dataset="CIFAR100", phase='train', aug=True, resize_imnet=True)
-    tasks = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19], [20, 21, 22, 23, 24, 25, 26, 27, 28, 29], [30, 31, 32, 33, 34, 35, 36, 37, 38, 39], [40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59], [60, 61, 62, 63, 64, 65, 66, 67, 68, 69], [70, 71, 72, 73, 74, 75, 76, 77, 78, 79], [80, 81, 82, 83, 84, 85, 86, 87, 88, 89], [90, 91, 92, 93, 94, 95, 96, 97, 98, 99]]
+    train_transform = utils.get_transform(dataset="ImageNet_R", phase='train', aug=True, resize_imnet=True)
+    tasks = [[i for i in range(200)]]
     seed = 0
     target_lab = 50
     train_transform = get_transform(dataset="CIFAR100", phase='train', aug=True, resize_imnet=True)
-    # ori_train = iCIFAR100('data', train=True, lab = True, tasks=tasks,
-    #                     download_flag=True, transform=train_transform, 
-    #                     seed=seed, rand_split=True, validation=False)
-    # outter = iCIFAR100('data', train=True, lab = True, tasks=tasks,
-    #                     download_flag=True, transform=train_transform, 
-    #                     seed=seed, rand_split=True, validation=False)
-    # train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
-    # train_target_list = list(np.where(np.array(train_label)==target_lab)[0])
-    # train_target = Subset(ori_train,train_target_list)
-    # print("Done")
-    best_noise = torch.from_numpy(np.load('./outputs/cifar-100/attack/coda-p/triggers/repeat-1/task-trigger-gen/06-29-03_59_57.npy'))
-    # asr_dataset = iCIFAR100BA('data', train=True, lab = True, tasks=tasks,
-    #                         download_flag=True, transform=train_transform, 
-    #                         seed=seed, rand_split=True, validation=False,
-    #                         backdoor=True, target=50, noise=best_noise)
-    asr_dataset = iCIFAR100ASR('data', train=True, lab = True, tasks=tasks,
+    ori_train = iCIFAR100('data', train=True, lab = True, tasks=tasks,
                        download_flag=True, transform=train_transform, 
-                         seed=seed, rand_split=True, validation=False, noise=best_noise*3, target_lab=2)
-    
-    # asr_dataset = iCIFAR100('data', train=True, lab = True, tasks=tasks,
-    #                    download_flag=True, transform=train_transform, 
-    #                      seed=seed, rand_split=True, validation=False)
-    
-    for i in range(10):
-        asr_dataset.load_dataset(i, train=True)
-        # asr_loader  = DataLoader(asr_dataset, batch_size=128, shuffle=False, drop_last=False)
+                         seed=seed, rand_split=True, validation=False)
+    outter_transform = get_transform(dataset="ImageNet_R", phase='train', aug=True, resize_imnet=True)
+    outter = iIMAGENET_R('data', train=True, lab = True, tasks=tasks,
+                       download_flag=True, transform=train_transform, 
+                         seed=seed, rand_split=True, validation=False)
+    train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
+    train_target_list = list(np.where(np.array(train_label)==2)[0])
+    train_target = Subset(ori_train,train_target_list)      
 
-        print(asr_dataset.__len__())
-        print(asr_dataset.__getitem__(10))
+    # # outter.load_dataset(0)
+    concoct_train_dataset = concoct_dataset(train_target,outter)  
+
+    train_loader = DataLoader(concoct_train_dataset, 128, shuffle=True, drop_last=True, num_workers=4)
+
+    for t in enumerate(train_loader):
+        print(t)
+        break
+
+
+    # ori_train.load_dataset(0)
+    # train_loader = DataLoader(ori_train, 128, shuffle=True, drop_last=True, num_workers=4)
+    # for t in enumerate(train_loader):
+    #     print(t)
+    #     break
+    
       

@@ -114,3 +114,23 @@ class get_labels(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+    
+class concoct_dataset(torch.utils.data.Dataset):
+    def __init__(self, target_dataset,outter_dataset):
+        self.idataset = target_dataset
+        outter_dataset.load_dataset(0)
+        self.odataset = outter_dataset
+
+    def __getitem__(self, idx):
+        if idx < len(self.odataset):
+            img = self.odataset[idx][0]
+            labels = self.odataset[idx][1]
+        else:
+            img = self.idataset[idx-len(self.odataset)][0]
+            #labels = torch.tensor(len(self.odataset.classes),dtype=torch.long)
+            labels = 200
+        #label = self.dataset[idx][1]
+        return img,labels,0
+
+    def __len__(self):
+        return len(self.idataset)+len(self.odataset)

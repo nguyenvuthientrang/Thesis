@@ -338,7 +338,7 @@ class concoct_dataset(torch.utils.data.Dataset):
             #labels = torch.tensor(len(self.odataset.classes),dtype=torch.long)
             labels = len(self.odataset.classes)
         #label = self.dataset[idx][1]
-        return (img,labels)
+        return img,labels,torch.zeros(labels.shape)
 
     def __len__(self):
         return len(self.idataset)+len(self.odataset)

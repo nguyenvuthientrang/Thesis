@@ -27,7 +27,7 @@ class Prompt(NormalNN):
         # logits
         logits, prompt_loss = self.model(inputs, train=True)
         # print(logits.shape)
-        # print(targets.shape)
+        # print(targets)
         logits = logits[:,:self.valid_out_dim]
 
         # ce with heuristic

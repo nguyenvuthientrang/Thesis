@@ -1,5 +1,5 @@
 dataset: ImageNet_R
-first_split_size: 200
+first_split_size: 201
 other_split_size: 0
 schedule:
 - 50
