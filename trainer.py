@@ -13,6 +13,8 @@ import learners
 import dataloaders
 from dataloaders.utils import *
 from dataloaders.dataloader import get_datasets
+from dataloaders.dataloader import *
+
 import time
 
 class Attacker():
@@ -188,7 +190,7 @@ class Attacker():
 
         return  
 
-    def trigger_generating(self, trigger=None, dim=100):
+    def trigger_generating(self, trigger=None, dim=100, save=None, cur_noise=None):
         # set task id for model (needed for prompting)
         if self.args.finetune:
             i = 1
@@ -237,7 +239,7 @@ class Attacker():
                     self.learner.model.prompt.process_task_count()
                     
         # learn
-        noise = self.learner.learn_trigger(target_loader, self.train_target, self.args)
+        noise = self.learner.learn_trigger(target_loader, self.train_target, self.args, noise=cur_noise)
 
         # # save model
         # self.learner.save_model(model_save_dir)
@@ -246,13 +248,16 @@ class Attacker():
         if not os.path.exists(trigger_save_dir): os.makedirs(trigger_save_dir)
         best_noise = noise.clone().detach().cpu()
 
-        save_name = trigger_save_dir + "target-" + str(self.args.target_lab) + "-noise_weight-" + str(self.args.noise_weight) + time.strftime("-%m-%d-%H_%M_%S",time.localtime(time.time())) 
+        if save:
+            save_name = trigger_save_dir + "target-" + str(self.args.target_lab) + "-noise_weight-" + str(self.args.noise_weight) + '-' + save
+        else:
+            save_name = trigger_save_dir + "target-" + str(self.args.target_lab) + "-noise_weight-" + str(self.args.noise_weight) + time.strftime("-%m-%d-%H_%M_%S",time.localtime(time.time())) 
         np.save(save_name, best_noise)
 
 
         return trigger
 
-    def finetune(self, dim=100):
+    def finetune(self, dim=100,save=None, noise=None):
         # set task id for model (needed for prompting)
         i = 1
         try:
@@ -267,7 +272,10 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate' + '/'
+        if noise is not None:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        else:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate' + '/'
         self.learner.load_model(model_save_dir)
 
         # save current task index
@@ -284,7 +292,10 @@ class Attacker():
             self.learner.model.task_id = 1
 
         # load dataloader
-        target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+        if noise is not None:
+            target_loader = DataLoader(poison_image(self.train_target, noise=noise), batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+        else:
+            target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
 
         # increment task id in prompting modules
         if i > 0:
@@ -296,7 +307,10 @@ class Attacker():
                     self.learner.model.prompt.process_task_count(finetune=self.args.finetune)
 
         # learn
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
+        if save:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab) + '-' + save +'/'
+        else:
+            model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'finetuned-'+ str(self.args.target_lab)+'/'
         if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
         self.learner.learn_batch(target_loader, self.train_target, model_save_dir)
 
@@ -305,7 +319,7 @@ class Attacker():
         self.learner.save_model(model_save_dir)
 
         return
-    
+
 
 class Victim:
     def __init__(self, args, seed, metric_keys, save_keys):

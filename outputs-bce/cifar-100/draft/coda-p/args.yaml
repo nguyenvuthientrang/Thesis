@@ -2,20 +2,21 @@ DW: false
 backdoor: true
 batch_size: 128
 config: configs/draft.yaml
+craft_round: 4
 dataroot: data
 dataset: CIFAR100
 dataset_path: ./data/
 debug_mode: 0
-finetune: false
+finetune: true
 first_split_size: 100
-gen_round: 1000
+gen_round: 200
 generating_lr_tri: 0.01
 generating_lr_warmup: 0.1
 gpuid:
-- 1
 - 2
 - 3
 - 4
+- 5
 - 6
 - 7
 l_inf_r: 0.06274509803921569
@@ -46,10 +47,10 @@ rand_split: true
 random_seed: 65
 repeat: 1
 schedule:
-- 20
+- 3
 schedule_type: cosine
 surrogate_epochs: 200
-target_lab: 82
+target_lab: 90
 temp: 2.0
 train_aug: true
 train_batch_size: 350

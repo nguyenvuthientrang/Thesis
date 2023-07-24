@@ -8,6 +8,7 @@ import pickle
 import torch
 import torch.utils.data as data
 from .utils import *
+from torch.utils.data import Dataset
 from .utils import check_integrity
 import random
 import torchvision.datasets as datasets
@@ -857,40 +858,58 @@ def get_datasets(args, trainDataset, tasks, resize_imnet, seed, phase='trigger_g
 
         return ori_train, ori_test, asr_test
 
+class poison_image(Dataset):
+    def __init__(self, dataset,noise,transform=None):
+        self.dataset = dataset
+        self.noise = noise
+
+    def __getitem__(self, idx):
+        image = self.dataset[idx][0]
+        image = torch.clamp(apply_noise_patch(self.noise,image,mode='add'),-1,1)
+        label = self.dataset[idx][1]
+        return (image, label, self.dataset[idx][2])
+
+    def __len__(self):
+        return len(self.dataset)
+
 if __name__ == '__main__':
     import utils
     # train_transform = utils.get_transform(dataset="CIFAR100", phase='train', aug=True, resize_imnet=True)
     tasks = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19], [20, 21, 22, 23, 24, 25, 26, 27, 28, 29], [30, 31, 32, 33, 34, 35, 36, 37, 38, 39], [40, 41, 42, 43, 44, 45, 46, 47, 48, 49], [50, 51, 52, 53, 54, 55, 56, 57, 58, 59], [60, 61, 62, 63, 64, 65, 66, 67, 68, 69], [70, 71, 72, 73, 74, 75, 76, 77, 78, 79], [80, 81, 82, 83, 84, 85, 86, 87, 88, 89], [90, 91, 92, 93, 94, 95, 96, 97, 98, 99]]
     seed = 0
-    target_lab = 50
+    target_lab = 2
     train_transform = get_transform(dataset="CIFAR100", phase='train', aug=True, resize_imnet=True)
-    # ori_train = iCIFAR100('data', train=True, lab = True, tasks=tasks,
-    #                     download_flag=True, transform=train_transform, 
-    #                     seed=seed, rand_split=True, validation=False)
-    # outter = iCIFAR100('data', train=True, lab = True, tasks=tasks,
-    #                     download_flag=True, transform=train_transform, 
-    #                     seed=seed, rand_split=True, validation=False)
-    # train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
-    # train_target_list = list(np.where(np.array(train_label)==target_lab)[0])
-    # train_target = Subset(ori_train,train_target_list)
-    # print("Done")
-    best_noise = torch.from_numpy(np.load('./outputs/cifar-100/attack/coda-p/triggers/repeat-1/task-trigger-gen/06-29-03_59_57.npy'))
+    ori_train = iCIFAR100('data', train=True, lab = True, tasks=tasks,
+                        download_flag=True, transform=train_transform, 
+                        seed=seed, rand_split=True, validation=False)
+    print("Gettin labels")
+    train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
+    train_target_list = list(np.where(np.array(train_label)==target_lab)[0])
+    print("Done gettin labels")
+    train_target = Subset(ori_train,train_target_list)
+    print("Done")
+    best_noise = torch.from_numpy(np.load('/home/ubuntu/Thesis/outputs-bce/cifar-100/draft/coda-p/triggers/repeat-1/task-trigger-gen/target-42-noise_weight-100-07-19-06_09_46.npy'))
+    poison = poison_image(train_target,best_noise)
+    print(train_target.__getitem__(10))
+    print(poison.__getitem__(10))
+
+
     # asr_dataset = iCIFAR100BA('data', train=True, lab = True, tasks=tasks,
     #                         download_flag=True, transform=train_transform, 
     #                         seed=seed, rand_split=True, validation=False,
     #                         backdoor=True, target=50, noise=best_noise)
-    asr_dataset = iCIFAR100ASR('data', train=True, lab = True, tasks=tasks,
-                       download_flag=True, transform=train_transform, 
-                         seed=seed, rand_split=True, validation=False, noise=best_noise*3, target_lab=2)
+    # asr_dataset = iCIFAR100ASR('data', train=True, lab = True, tasks=tasks,
+    #                    download_flag=True, transform=train_transform, 
+    #                      seed=seed, rand_split=True, validation=False, noise=best_noise*3, target_lab=2)
     
     # asr_dataset = iCIFAR100('data', train=True, lab = True, tasks=tasks,
     #                    download_flag=True, transform=train_transform, 
     #                      seed=seed, rand_split=True, validation=False)
     
-    for i in range(10):
-        asr_dataset.load_dataset(i, train=True)
-        # asr_loader  = DataLoader(asr_dataset, batch_size=128, shuffle=False, drop_last=False)
+    # for i in range(10):
+    #     asr_dataset.load_dataset(i, train=True)
+    #     # asr_loader  = DataLoader(asr_dataset, batch_size=128, shuffle=False, drop_last=False)
 
-        print(asr_dataset.__len__())
-        print(asr_dataset.__getitem__(10))
+    #     print(asr_dataset.__len__())
+    #     print(asr_dataset.__getitem__(10))
       

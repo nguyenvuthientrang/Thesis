@@ -144,10 +144,11 @@ class NormalNN(nn.Module):
         except:
             return None
         
-    def learn_trigger(self, train_loader, train_dataset, args):
+    def learn_trigger(self, train_loader, train_dataset, args, noise=None):
 
         # noise
-        noise = torch.zeros((1, 3, args.noise_size, args.noise_size), device='cuda')
+        if noise is None:
+            noise = torch.zeros((1, 3, args.noise_size, args.noise_size), device='cuda')
         batch_pert = torch.autograd.Variable(noise.cuda(), requires_grad=True)
         batch_opt = torch.optim.RAdam(params=[batch_pert],lr=args.generating_lr_tri)
 

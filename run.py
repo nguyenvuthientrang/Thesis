@@ -56,6 +56,7 @@ def create_args():
     parser.add_argument('--train_batch_size', type=int, default=350)
     parser.add_argument('--patch_mode', type=str, default='add')
     parser.add_argument('--noise_weight', type=int, default=100)
+    parser.add_argument('--craft_round', type=int, default=4)
 
     # Victim Args
     parser.add_argument('--poison_amount', type=int, default=25)
@@ -170,41 +171,63 @@ if __name__ == '__main__':
         # train attacker
         # attacker.train_surrogate()  
         # attacker.finetune()  
-        attacker.trigger_generating()
+        # attacker.trigger_generating()
 
-        # # set up a victim
-        # victim = Victim(args, seed, metric_keys, save_keys)
+        # attacker = Attacker(args, seed, metric_keys, save_keys)
+        # attacker.finetune()
+        # # trigger_save_dir = attacker.model_top_dir + '/triggers/repeat-'+str(attacker.seed+1)+'/task-'+'trigger-gen'+'/'
+        # # save_name = trigger_save_dir + "target-" + str(attacker.args.target_lab) + "-noise_weight-" + str(attacker.args.noise_weight) + '-' + str(1)
+        # # best_noise = torch.from_numpy(np.load(save_name + '.npy'))
+        # for i in range(1, args.craft_round+1):
+        #     attacker = Attacker(args, seed, metric_keys, save_keys)
+        #     if i == 1:
+        #         attacker.trigger_generating(save=str(i))
+        #     else:
+        #         attacker.trigger_generating(save=str(i), cur_noise=best_noise)
+            
+        #     trigger_save_dir = attacker.model_top_dir + '/triggers/repeat-'+str(attacker.seed+1)+'/task-'+'trigger-gen'+'/'
+        #     save_name = trigger_save_dir + "target-" + str(attacker.args.target_lab) + "-noise_weight-" + str(attacker.args.noise_weight) + '-' + str(i)
+        #     best_noise = torch.from_numpy(np.load(save_name + '.npy'))
+            
+        #     attacker = Attacker(args, seed, metric_keys, save_keys)
+        #     attacker.finetune(noise=best_noise)
+        # attacker = Attacker(args, seed, metric_keys, save_keys)
+        # attacker.trigger_generating(cur_noise=best_noise)
 
-        # # poison training
-        # victim.train(avg_metrics)   
 
-        # # evaluate model
-        # avg_metrics = victim.evaluate(avg_metrics)    
+        # set up a victim
+        victim = Victim(args, seed, metric_keys, save_keys)
 
-        # # save results
-        # for mkey in metric_keys: 
-        #     m_dir = args.log_dir+'/results-'+mkey+'/'
-        #     if not os.path.exists(m_dir): os.makedirs(m_dir)
-        #     for skey in save_keys:
-        #         if (not (mkey in global_only)) or (skey == 'global'):
-        #             save_file = m_dir+skey+'.yaml'
-        #             result=avg_metrics[mkey][skey]
-        #             yaml_results = {}
-        #             if len(result.shape) > 2:
-        #                 yaml_results['mean'] = result[:,:,:r+1].mean(axis=2).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:,:r+1].std(axis=2).tolist()
-        #                 yaml_results['history'] = result[:,:,:r+1].tolist()
-        #             else:
-        #                 yaml_results['mean'] = result[:,:r+1].mean(axis=1).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:r+1].std(axis=1).tolist()
-        #                 yaml_results['history'] = result[:,:r+1].tolist()
-        #             with open(save_file, 'w') as yaml_file:
-        #                 yaml.dump(yaml_results, yaml_file, default_flow_style=False)
+        # poison training
+        victim.train(avg_metrics)   
 
-        # # Print the summary so far
-        # print('===Summary of experiment repeats:',r+1,'/',args.repeat,'===')
-        # for mkey in metric_keys: 
-        #     print(mkey, ' | mean:', avg_metrics[mkey]['global'][-1,:r+1].mean(), 'std:', avg_metrics[mkey]['global'][-1,:r+1].std())
+        # evaluate model
+        avg_metrics = victim.evaluate(avg_metrics)    
+
+        # save results
+        for mkey in metric_keys: 
+            m_dir = args.log_dir+'/results-'+mkey+'/'
+            if not os.path.exists(m_dir): os.makedirs(m_dir)
+            for skey in save_keys:
+                if (not (mkey in global_only)) or (skey == 'global'):
+                    save_file = m_dir+skey+'.yaml'
+                    result=avg_metrics[mkey][skey]
+                    yaml_results = {}
+                    if len(result.shape) > 2:
+                        yaml_results['mean'] = result[:,:,:r+1].mean(axis=2).tolist()
+                        if r>1: yaml_results['std'] = result[:,:,:r+1].std(axis=2).tolist()
+                        yaml_results['history'] = result[:,:,:r+1].tolist()
+                    else:
+                        yaml_results['mean'] = result[:,:r+1].mean(axis=1).tolist()
+                        if r>1: yaml_results['std'] = result[:,:r+1].std(axis=1).tolist()
+                        yaml_results['history'] = result[:,:r+1].tolist()
+                    with open(save_file, 'w') as yaml_file:
+                        yaml.dump(yaml_results, yaml_file, default_flow_style=False)
+
+        # Print the summary so far
+        print('===Summary of experiment repeats:',r+1,'/',args.repeat,'===')
+        for mkey in metric_keys: 
+            print(mkey, ' | mean:', avg_metrics[mkey]['global'][-1,:r+1].mean(), 'std:', avg_metrics[mkey]['global'][-1,:r+1].std())
     
     
 

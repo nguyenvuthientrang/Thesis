@@ -2,7 +2,7 @@ dataset: CIFAR100
 first_split_size: 100
 other_split_size: 0
 schedule:
-- 20
+- 3
 schedule_type: cosine
 batch_size: 128
 optimizer: Adam
