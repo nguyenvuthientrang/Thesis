@@ -1,6 +1,6 @@
 # repo-specific stuff
 data/
-outputs/
+# outputs/
 *.pt
 \#*#
 .idea

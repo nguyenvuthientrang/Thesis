@@ -1,20 +1,10 @@
-##  CODA-Prompt: COntinual Decomposed Attention-based Prompting for Rehearsal-Free Continual Learning
-PyTorch code for the CVPR 2023 paper:\
-**CODA-Prompt: COntinual Decomposed Attention-based Prompting for Rehearsal-Free Continual Learning**\
-**_[James Smith]_**, *Leonid Karlinsky, Vyshnavi Gutta, Paola Cascante-Bonilla*\
-*Donghyun Kim, Assaf Arbelle, Rameswar Panda, Rogerio Feris, Zsolt Kira* \
-IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), 2023\
-[[arXiv]]
-
-<p align="center">
-<img src="method_coda-p.png" width="90%">
-</p>
+##  Attack on Backdoor: Backdoor Attacks in Prompt-based Continual Learning
+PyTorch code for the Thesis:\
+**Attack on Backdoor: Backdoor Attacks in Prompt-based Continual Learning**\
+**_Nguyễn Vũ Thiên Trang_**, DSAI64, School of Information and Communication Technology, Hanoi University of Science and Technology.
 
 ## Abstract
-Computer vision models suffer from a phenomenon known as catastrophic forgetting when learning novel concepts from continuously shifting training data. Typical solutions for this continual learning problem require extensive rehearsal of previously seen data, which increases memory costs and may violate data privacy. Recently, the emergence of large-scale pre-trained vision transformer models has enabled prompting approaches as an alternative to data-rehearsal. These approaches rely on a key-query mechanism to generate prompts and have been found to be highly resistant to catastrophic forgetting in the well-established rehearsal-free continual learning setting. However, the key mechanism of these methods is not trained end-to-end with the task sequence. Our experiments show that this leads to a reduction in their plasticity, hence sacrificing new task accuracy, and inability to benefit from expanded parameter capacity. We instead propose to learn a set of prompt components which are assembled with input-conditioned weights to produce input-conditioned prompts, resulting in a novel attention-based end-to-end key-query scheme. Our experiments show that we outperform the current SOTA method DualPrompt on established benchmarks by as much as 5.4% in average accuracy. We also outperform the state of art by as much as 6.6% accuracy on a continual learning benchmark which contains both class-incremental and domain-incremental task shifts, corresponding to many practical settings.
-
-## Important notice!
-We received feedback from other researchers that our orthogonality initialization might not be “in the spirit” of continual learning. **So, we fixed it!** Our code now uses the Gram-Schmidt process at the start of each new task to initialize new prompting parameters. We found that, with this initialization, we can even set the ortho penalty of our method to 0.0! We hope this might inspire future work, as well. Send me a message if you want to discuss more (email preferred).
+Continual Learning has emerged as a promising solution for meeting data privacy and security requirements, as it enables continuous learning from diverse data sources without storing data. However, the fundamental mechanism of continual learning, designed to overcome catastrophic forgetting, inadvertently creates a potential vulnerability that can be exploited by sophisticated attack methods like backdoor attacks. A backdoor attack exploits model vulnerabilities to inject malicious knowledge, causing the model to misbehave when exposed to specific triggers in the data. In this groundbreaking thesis, the potentiality of targeted backdoor attacks within the context of continual learning is delved into, and the persistence and adaptability of backdoor knowledge in an incremental learning process are investigated. Specifically, the thesis proposes a novel backdoor attack framework, named \emph{Attack-on Backdoor (AOB)}, tailored for prompt-based continual learning, which guides poisoned data to select malicious prompts. The framework leverages bilevel optimization to simulate a continual learning process, optimizing triggers to align with malicious prompts. Furthermore, an orthogonality loss is applied to enhance the distinctiveness between backdoor prompts and clean prompts, and binary cross-entropy is employed to establish an independent trigger optimization mechanism. Extensive experimentation confirms the significant threat of backdoor attacks to continual learning, with an astonishing attack success rate reaching 100\%. The source code for the thesis is publicly available at \url{https://github.com/nguyenvuthientrang/Thesis}.
 
 ## Setup
  * Install anaconda: https://www.anaconda.com/distribution/
@@ -22,47 +12,23 @@ We received feedback from other researchers that our orthogonality initializatio
  * `conda activate coda`
  * `sh install_requirements.sh`
  * <b>NOTE: this framework was tested using `torch == 2.0.0` but should work for previous versions</b>
- 
-## Datasets
- * Create a folder `data/`
- * **CIFAR 100**: should automatically be downloaded
- * **ImageNet-R**: retrieve from: https://github.com/hendrycks/imagenet-r
- * **DomainNet**: *coming soon*!
+
 
 ## Training
-All commands should be run under the project root directory. **The scripts are set up for 4 GPUs** but can be modified for your hardware.
+To execute each phase of the attacking pipeline, make the following modifications:
+
+1. Modify the `run.py` file.
+2. Adjust the configuration files in the `configs/` directory.
+3. Update the script files in the `experiments/` directory.
+
 
 ```bash
 sh experiments/cifar100.sh
-sh experiments/imagenet-r.sh
 ```
 
 ## Results
-Results will be saved in a folder named `outputs/`. To get the final average accuracy, retrieve the final number in the file `outputs/**/results-acc/global.yaml`
+Results will be saved in a folder named `outputs/`. To get the final average accuracy, retrieve the final number in the file `outputs/**/results-asr/pt.yaml`
 
-## Ready to create your next method?
-Create your new prompting method in `models/zoo.py`, which will require you to create a new class in `learners/prompt.py` as well. Hopefully, you can create your next method while only modifying these two files! I also reccomend you develop with the ImageNet-R benchmark and use fewer epochs for faster results. **Cannot wait to see what method you develop!**
-
-## Model backbone
-For fair comparisons with our method and results, please see models/zoo.py to take or replace the exact pre-trained vit_base_patch16_224 weights used in our repo.
-
-## Note on setting
-Our setting is rehearsal-free class-incremental continual learning. Our method has not been tested for other settings such as domain-incremental continual learning.
 
 ## Acknowledgement
-This material is based upon work supported by the National Science Foundation under Grant No. 2239292.
-
-## Citation
-**If you found our work useful for your research, please cite our work**:
-    
-    @InProceedings{Smith_2023_CVPR,
-        author    = {Smith, James Seale and Karlinsky, Leonid and Gutta, Vyshnavi and Cascante-Bonilla, Paola and Kim, Donghyun and Arbelle, Assaf and Panda, Rameswar and Feris, Rogerio and Kira, Zsolt},
-        title     = {CODA-Prompt: COntinual Decomposed Attention-Based Prompting for Rehearsal-Free Continual Learning},
-        booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-        month     = {June},
-        year      = {2023},
-        pages     = {11909-11919}
-    }
-
-[James Smith]: https://jamessealesmith.github.io/
-[arXiv]: https://arxiv.org/abs/2211.13218
+This implementation is based on [ruoxi-jia-group/Narcissus](https://github.com/ruoxi-jia-group/Narcissus) and [GT-RIPL/CODA-Prompt](https://github.com/GT-RIPL/CODA-Prompt).

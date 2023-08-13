@@ -10,7 +10,7 @@ import numpy as np
 import yaml
 import json
 import random
-from trainer import Trainer, Attacker, Victim
+from trainer import Attacker, Victim
 
 def create_args():
     
@@ -173,32 +173,8 @@ if __name__ == '__main__':
         # attacker.finetune()  
         # attacker.trigger_generating()
 
-        # attacker = Attacker(args, seed, metric_keys, save_keys)
-        # attacker.finetune()
-        # # trigger_save_dir = attacker.model_top_dir + '/triggers/repeat-'+str(attacker.seed+1)+'/task-'+'trigger-gen'+'/'
-        # # save_name = trigger_save_dir + "target-" + str(attacker.args.target_lab) + "-noise_weight-" + str(attacker.args.noise_weight) + '-' + str(1)
-        # # best_noise = torch.from_numpy(np.load(save_name + '.npy'))
-        # for i in range(1, args.craft_round+1):
-        #     attacker = Attacker(args, seed, metric_keys, save_keys)
-        #     if i == 1:
-        #         attacker.trigger_generating(save=str(i))
-        #     else:
-        #         attacker.trigger_generating(save=str(i), cur_noise=best_noise)
-            
-        #     trigger_save_dir = attacker.model_top_dir + '/triggers/repeat-'+str(attacker.seed+1)+'/task-'+'trigger-gen'+'/'
-        #     save_name = trigger_save_dir + "target-" + str(attacker.args.target_lab) + "-noise_weight-" + str(attacker.args.noise_weight) + '-' + str(i)
-        #     best_noise = torch.from_numpy(np.load(save_name + '.npy'))
-            
-        #     attacker = Attacker(args, seed, metric_keys, save_keys)
-        #     attacker.finetune(noise=best_noise)
-        # attacker = Attacker(args, seed, metric_keys, save_keys)
-        # attacker.trigger_generating(cur_noise=best_noise)
-
-
         # set up a victim
         victim = Victim(args, seed, metric_keys, save_keys)
-
-        # victim.get_prompt()
 
         # # poison training
         # victim.train(avg_metrics)   

@@ -152,7 +152,6 @@ class NormalNN(nn.Module):
         batch_pert = torch.autograd.Variable(noise.cuda(), requires_grad=True)
         batch_opt = torch.optim.RAdam(params=[batch_pert],lr=args.generating_lr_tri)
 
-        # criterion = torch.nn.CrossEntropyLoss()
         criterion = torch.nn.BCEWithLogitsLoss()
 
             
@@ -186,18 +185,10 @@ class NormalNN(nn.Module):
 
                 # print(clamp_batch_pert)
                 logits = self.forward(new_x)
-                # print("Logits shape:", logits.shape)
-                # print("Y shape:", y.shape)
-                # print("Logits:", logits)
-                # print("Y:", torch.ones(y.shape).cuda())
                 targets = torch.zeros(logits.shape)
                 targets[:, args.target_lab] = 1
                 loss = criterion(logits, targets.cuda())
-                # loss = criterion(logits, y.long())
-                # print("Loss:", loss)
                 loss_regu = torch.mean(loss) * args.noise_weight
-                # print("Loss_regu:", loss_regu)
-                # np.save("eg_logits.np", logits.clone().detach().cpu())
                 
 
                 batch_opt.zero_grad()
@@ -256,10 +247,6 @@ class NormalNN(nn.Module):
         orig_mode = model.training
         model.eval()
         for i, (input, target, task) in enumerate(dataloader):
-
-            for l in [0, 1, 2, 3, 4]:
-                with open('prompt_used_task_dual_{}.txt'.format(l), 'a') as f:
-                    f.write('\n'.join([str(i) for i in task]))
 
             if self.gpu:
                 with torch.no_grad():
