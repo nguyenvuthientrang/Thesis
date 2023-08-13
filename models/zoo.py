@@ -175,6 +175,12 @@ class CodaPrompt(nn.Module):
             n_K = nn.functional.normalize(K, dim=1)
             q = nn.functional.normalize(a_querry, dim=2)
             aq_k = torch.einsum('bkd,kd->bk', q, n_K)
+            
+            top_k = torch.topk(aq_k, 1, dim=1)
+            k_idx = top_k.indices
+            with open('prompt_used_task_{}.txt'.format(l), 'a') as f:
+                f.write('\n'.join([str(task_id) + ' ' +  str(i) for i in k_idx]))
+
             # (b x 1 x k x 1) * [1 x plen x k x d] = (b x plen x d) -> prompt = plen x k x d
             P_ = torch.einsum('bk,kld->bld', aq_k, p)
 
@@ -272,13 +278,15 @@ class DualPrompt(nn.Module):
                 else:
                     top_k = torch.topk(cos_sim, self.top_k, dim=1)
                     k_idx = top_k.indices
-                    # print("Prompt used:", k_idx)
+                    with open('prompt_used_task_dual_{}.txt'.format(l), 'a') as f:
+                        f.write('\n'.join([str(task_id) + ' ' +  str(i) for i in k_idx]))
                     loss = (1.0 - cos_sim[:,k_idx]).sum()
                     P_ = p[k_idx]
             else:
                 top_k = torch.topk(cos_sim, self.top_k, dim=1)
                 k_idx = top_k.indices
-                # print("Prompt used:", k_idx)
+                with open('prompt_used_task_dual_{}.txt'.format(l), 'a') as f:
+                    f.write('\n'.join([str(task_id) + ' ' +  str(i) for i in k_idx]))
                 P_ = p[k_idx]
                 
             # select prompts

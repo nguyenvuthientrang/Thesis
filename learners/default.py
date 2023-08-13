@@ -257,6 +257,10 @@ class NormalNN(nn.Module):
         model.eval()
         for i, (input, target, task) in enumerate(dataloader):
 
+            for l in [0, 1, 2, 3, 4]:
+                with open('prompt_used_task_dual_{}.txt'.format(l), 'a') as f:
+                    f.write('\n'.join([str(i) for i in task]))
+
             if self.gpu:
                 with torch.no_grad():
                     input = input.cuda()

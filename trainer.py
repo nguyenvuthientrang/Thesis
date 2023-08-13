@@ -447,13 +447,14 @@ class Victim:
         asr_loader  = DataLoader(self.asr_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
         untarget_loader  = DataLoader(self.untarget_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
         if local:
-            return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), self.learner.validation(untarget_loader, task_in = self.tasks_logits[t_index], task_metric=task[2])
-            # return 0, self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), 0
-
+            # return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[1]), self.learner.validation(untarget_loader, task_in = self.tasks_logits[t_index], task_metric=task[2])
+            return 0, self.learner.validation(asr_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), 0
+            # return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task[0]), 0, 0
 
         else:
-            return self.learner.validation(test_loader, task_metric=task), self.learner.validation(asr_loader, task_metric=task, save=t_index), self.learner.validation(untarget_loader, task_metric=task)
-            # return 0, self.learner.validation(asr_loader, task_metric=task, save=t_index), 0
+            # return self.learner.validation(test_loader, task_metric=task), self.learner.validation(asr_loader, task_metric=task, save=t_index), self.learner.validation(untarget_loader, task_metric=task)
+            return 0, self.learner.validation(asr_loader, task_metric=task), 0
+            # return self.learner.validation(test_loader, task_metric=task), 0, 0
 
 
     def train(self, avg_metrics):
@@ -580,6 +581,10 @@ class Victim:
             
         for i in range(self.max_task):
 
+            # for l in [2, 3, 4]:
+            #     with open('prompt_used_{}.txt'.format(l), 'a') as f:
+            #         f.write("\n==================={}=================".format(i))
+
             # increment task id in prompting modules
             if i > 0:
                 try:
@@ -616,8 +621,6 @@ class Victim:
                 metric_table['clean_acc'][val_name][self.task_names[i]] = cla
                 metric_table['asr'][val_name][self.task_names[i]] = asr
                 metric_table['untarget'][val_name][self.task_names[i]] = untarget
-                # print(asr)
-                # print(metric_table)
             for j in range(i+1):
                 val_name = self.task_names[j]
                 cla, asr, untarget = self.task_eval(j, local=True)
@@ -631,6 +634,21 @@ class Victim:
         avg_metrics['untarget'] = self.summarize_acc(avg_metrics['untarget'], metric_table['untarget'],  metric_table_local['untarget'])
 
         return avg_metrics
+    
+
+    def get_prompt(self):
+        self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+        i = 9
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+self.task_names[i]+'/'
+        self.learner.task_count = i 
+        self.learner.add_valid_output_dim(len(self.tasks_logits[i]))
+        self.learner.pre_steps()
+        self.learner.load_model(model_save_dir)
+
+        for l in self.learner.model.module.prompt.e_layers:
+            p = getattr(self.learner.model.module.prompt,f'e_p_{l}')
+            torch.save(p, 'prompt_{}.pt'.format(l))
+
 
 
 class Trainer:
