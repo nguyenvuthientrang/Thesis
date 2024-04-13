@@ -821,10 +821,11 @@ def get_datasets(args, trainDataset, tasks, resize_imnet, seed, phase='trigger_g
         outter = outterDataset(args.dataroot, train=True, lab = True, tasks=tasks,
                             download_flag=True, transform=train_transform, 
                             seed=seed, rand_split=args.rand_split, validation=args.validation)
-        train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
-        train_target_list = list(np.where(np.array(train_label)==args.target_lab)[0])
-        train_target = Subset(ori_train,train_target_list)
-        return outter, train_target
+        # train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
+        # train_target_list = list(np.where(np.array(train_label)==args.target_lab)[0])
+        # train_target = Subset(ori_train,train_target_list)
+        # return outter, train_target
+        return outter, ori_train
     elif phase == 'poisoning':
         train_transform = get_transform(dataset=args.dataset, phase='train', aug=args.train_aug, resize_imnet=resize_imnet)
         test_transform  = get_transform(dataset=args.dataset, phase='test', aug=args.train_aug, resize_imnet=resize_imnet)
