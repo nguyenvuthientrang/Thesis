@@ -16,12 +16,12 @@ from dataloaders.dataloader import get_datasets
 import time
 
 class Attacker():
-    def __init__(self, args, seed):
+    def __init__(self, args, seed, metric_keys, save_keys):
 
         # process inputs
         self.seed = seed
-        # self.metric_keys = metric_keys
-        # self.save_keys = save_keys
+        self.metric_keys = metric_keys
+        self.save_keys = save_keys
         self.log_dir = args.log_dir
         self.batch_size = args.batch_size
         self.workers = args.workers
