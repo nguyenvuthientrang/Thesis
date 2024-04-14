@@ -155,11 +155,15 @@ if __name__ == '__main__':
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
 
-        # set up an attacker
-        attacker = Attacker(args, seed, metric_keys, save_keys)
+        # # set up an attacker
+        # attacker = Attacker(args, seed, metric_keys, save_keys)
 
-        # init total run metrics storage
-        max_task = attacker.max_task
+        # set up a victim
+        victim = Victim(args, seed, metric_keys, save_keys)
+
+        # # init total run metrics storage
+        # max_task = attacker.max_task
+        max_task = victim.max_task
         if r == 0: 
             for mkey in metric_keys: 
                 avg_metrics[mkey]['global'] = np.zeros((max_task,args.repeat))
@@ -169,41 +173,39 @@ if __name__ == '__main__':
 
         # train attacker
         # attacker.train_surrogate()  
-        attacker.trigger_generating()
+        # attacker.trigger_generating()
 
-        # # set up a victim
-        # victim = Victim(args, seed, metric_keys, save_keys)
 
-        # # poison training
-        # victim.train(avg_metrics)   
+        # poison training
+        victim.train(avg_metrics)   
 
-        # # evaluate model
-        # avg_metrics = victim.evaluate(avg_metrics)    
+        # evaluate model
+        avg_metrics = victim.evaluate(avg_metrics)    
 
-        # # save results
-        # for mkey in metric_keys: 
-        #     m_dir = args.log_dir+'/results-'+mkey+'/'
-        #     if not os.path.exists(m_dir): os.makedirs(m_dir)
-        #     for skey in save_keys:
-        #         if (not (mkey in global_only)) or (skey == 'global'):
-        #             save_file = m_dir+skey+'.yaml'
-        #             result=avg_metrics[mkey][skey]
-        #             yaml_results = {}
-        #             if len(result.shape) > 2:
-        #                 yaml_results['mean'] = result[:,:,:r+1].mean(axis=2).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:,:r+1].std(axis=2).tolist()
-        #                 yaml_results['history'] = result[:,:,:r+1].tolist()
-        #             else:
-        #                 yaml_results['mean'] = result[:,:r+1].mean(axis=1).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:r+1].std(axis=1).tolist()
-        #                 yaml_results['history'] = result[:,:r+1].tolist()
-        #             with open(save_file, 'w') as yaml_file:
-        #                 yaml.dump(yaml_results, yaml_file, default_flow_style=False)
+        # save results
+        for mkey in metric_keys: 
+            m_dir = args.log_dir+'/results-'+mkey+'/'
+            if not os.path.exists(m_dir): os.makedirs(m_dir)
+            for skey in save_keys:
+                if (not (mkey in global_only)) or (skey == 'global'):
+                    save_file = m_dir+skey+'.yaml'
+                    result=avg_metrics[mkey][skey]
+                    yaml_results = {}
+                    if len(result.shape) > 2:
+                        yaml_results['mean'] = result[:,:,:r+1].mean(axis=2).tolist()
+                        if r>1: yaml_results['std'] = result[:,:,:r+1].std(axis=2).tolist()
+                        yaml_results['history'] = result[:,:,:r+1].tolist()
+                    else:
+                        yaml_results['mean'] = result[:,:r+1].mean(axis=1).tolist()
+                        if r>1: yaml_results['std'] = result[:,:r+1].std(axis=1).tolist()
+                        yaml_results['history'] = result[:,:r+1].tolist()
+                    with open(save_file, 'w') as yaml_file:
+                        yaml.dump(yaml_results, yaml_file, default_flow_style=False)
 
-        # # Print the summary so far
-        # print('===Summary of experiment repeats:',r+1,'/',args.repeat,'===')
-        # for mkey in metric_keys: 
-        #     print(mkey, ' | mean:', avg_metrics[mkey]['global'][-1,:r+1].mean(), 'std:', avg_metrics[mkey]['global'][-1,:r+1].std())
+        # Print the summary so far
+        print('===Summary of experiment repeats:',r+1,'/',args.repeat,'===')
+        for mkey in metric_keys: 
+            print(mkey, ' | mean:', avg_metrics[mkey]['global'][-1,:r+1].mean(), 'std:', avg_metrics[mkey]['global'][-1,:r+1].std())
     
     
 
