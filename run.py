@@ -55,6 +55,8 @@ def create_args():
     parser.add_argument('--gen_round', type=int, default=100)
     parser.add_argument('--train_batch_size', type=int, default=350)
     parser.add_argument('--patch_mode', type=str, default='add')
+    parser.add_argument('--surrogate_dir', type=str, default="outputs/out",
+                         help="Surrogate dir!")
 
     # Victim Args
     parser.add_argument('--poison_amount', type=int, default=25)
@@ -166,8 +168,8 @@ if __name__ == '__main__':
                     avg_metrics[mkey]['pt-local'] = np.zeros((max_task,max_task,args.repeat))
 
         # train attacker
-        attacker.train_surrogate()  
-        # attacker.trigger_generating()
+        # attacker.train_surrogate()  
+        attacker.trigger_generating()
 
         # # set up a victim
         # victim = Victim(args, seed, metric_keys, save_keys)

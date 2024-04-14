@@ -29,6 +29,7 @@ class Attacker():
         
         # model load directory
         self.model_top_dir = args.log_dir
+        self.model_load_dir = args.surrogate_dir
 
         # select dataset
         self.grayscale_vis = False
@@ -193,7 +194,8 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'surrogate'+'/'
+        print("Loading surrogate model from {}".format(self.model_load_dir))
+        model_save_dir = self.model_load_dir
         self.learner.load_model(model_save_dir)
 
         # save current task index
