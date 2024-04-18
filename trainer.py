@@ -49,6 +49,8 @@ class Attacker():
             self.top_k = 1
         else:
             raise ValueError('Dataset not implemented!')
+        num_classes = 201
+
 
         # upper bound flag
         if args.upper_bound_flag:
@@ -145,11 +147,11 @@ class Attacker():
             # load dataset for task
             task = self.tasks_logits[i]
             if self.oracle_flag:
-                self.outter.load_dataset(i, train=False)
+                # self.outter.load_dataset(i, train=False)
                 self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
                 self.add_dim += len(task)
             else:
-                self.outter.load_dataset(i, train=True)
+                # self.outter.load_dataset(i, train=True)
                 self.add_dim = len(task)
 
             # set task id for model (needed for prompting)
@@ -162,7 +164,7 @@ class Attacker():
             self.learner.add_valid_output_dim(self.add_dim)
 
             # load dataset with memory
-            self.outter.append_coreset(only=False)
+            # self.outter.append_coreset(only=False)
 
             # load dataloader
             train_loader = DataLoader(self.outter, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
@@ -186,7 +188,60 @@ class Attacker():
 
         return  
 
-    def trigger_generating(self, trigger=None, dim=100):
+    def poison_warmup(self):
+    
+        # temporary results saving
+        temp_table = {}
+        for mkey in self.metric_keys: temp_table[mkey] = []
+        temp_dir = self.log_dir + '/temp/'
+        if not os.path.exists(temp_dir): os.makedirs(temp_dir)
+
+        i = 0
+
+        # save current task index
+        self.current_t_index = i
+
+        # print name
+        train_name = self.task_names[i]
+        print('======================', train_name, '=======================')
+
+        # load dataset for task
+        task = self.tasks_logits[i]
+        if self.oracle_flag:
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+            self.add_dim += len(task)
+        else:
+            self.add_dim = len(task)
+
+        # set task id for model (needed for prompting)
+        try:
+            self.learner.model.module.task_id = i
+        except:
+            self.learner.model.task_id = i
+
+        # add valid class to classifier
+        self.learner.add_valid_output_dim(self.add_dim)
+
+        print("Loading surrogate model from {}".format(self.model_load_dir))
+        model_save_dir = self.model_load_dir
+        self.learner.load_model(model_save_dir)
+
+        print('======================', 'Poisoning warmup', '=======================')
+
+        # load dataloader
+        train_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+
+        # learn
+        model_save_dir = self.model_top_dir + '/models/repeat-'+str(self.seed+1)+'/task-'+'warmup'+'/'
+        if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
+        avg_train_time = self.learner.warmup(train_loader, self.train_target, model_save_dir)
+
+        # save model
+        self.learner.save_model(model_save_dir)
+
+        return  
+
+    def trigger_generating(self, trigger=None, dim=201):
 
         # add valid class to classifier
         if self.add_dim > 0:
@@ -194,9 +249,6 @@ class Attacker():
         else:
             self.learner.add_valid_output_dim(dim)          
 
-        print("Loading surrogate model from {}".format(self.model_load_dir))
-        model_save_dir = self.model_load_dir
-        self.learner.load_model(model_save_dir)
 
         # save current task index
         print('======================', 'Generating triggers', '=======================')
@@ -210,6 +262,10 @@ class Attacker():
             self.learner.model.module.task_id = 0
         except:
             self.learner.model.task_id = 0
+
+        print("Loading surrogate model from {}".format(self.model_load_dir))
+        model_save_dir = self.model_load_dir
+        self.learner.load_model(model_save_dir)
 
         # load dataloader
         target_loader = DataLoader(self.train_target, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
@@ -229,6 +285,53 @@ class Attacker():
 
 
         return trigger
+
+    def test_noise(self, dim=201):
+        # temporary results saving
+        temp_table = {}
+        for mkey in self.metric_keys: temp_table[mkey] = []
+        temp_dir = self.log_dir + '/temp/'
+        if not os.path.exists(temp_dir): os.makedirs(temp_dir)
+
+        i = 0
+
+        # save current task index
+        self.current_t_index = i
+
+        # print name
+        train_name = self.task_names[i]
+        print('======================', train_name, '=======================')
+
+        # load dataset for task
+        task = self.tasks_logits[i]
+        if self.oracle_flag:
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+            self.add_dim += len(task)
+        else:
+            self.add_dim = len(task)
+
+        # set task id for model (needed for prompting)
+        try:
+            self.learner.model.module.task_id = i
+        except:
+            self.learner.model.task_id = i
+
+        # add valid class to classifier
+        self.learner.add_valid_output_dim(self.add_dim)
+
+        print("Loading surrogate model from {}".format('outputs/cifar-100/surrogate/coda-p/models/repeat-1/task-surrogate/'))
+        model_save_dir = 'outputs/cifar-100/surrogate/coda-p/models/repeat-1/task-surrogate/'
+        self.learner.load_model(model_save_dir)
+
+        print('======================', 'Testing surrogate model with noise', '=======================')
+
+        # load dataloader
+        train_loader = DataLoader(self.outter, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=int(self.workers))
+
+        # learn
+        avg_train_time = self.learner.test_noise(train_loader, self.train_target, self.args)
+
+        return
     
 
 class Victim:

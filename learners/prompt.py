@@ -48,7 +48,7 @@ class Prompt(NormalNN):
         return total_loss.detach(), logits
 
     # sets model optimizers
-    def init_optimizer(self):
+    def init_optimizer(self, warmup=False):
 
         # parse optimizer args
         # Multi-GPU
@@ -56,28 +56,33 @@ class Prompt(NormalNN):
             params_to_opt = list(self.model.module.prompt.parameters()) + list(self.model.module.last.parameters())
         else:
             params_to_opt = list(self.model.prompt.parameters()) + list(self.model.last.parameters())
-        print('*****************************************')
-        optimizer_arg = {'params':params_to_opt,
-                         'lr':self.config['lr'],
-                         'weight_decay':self.config['weight_decay']}
-        if self.config['optimizer'] in ['SGD','RMSprop']:
-            optimizer_arg['momentum'] = self.config['momentum']
-        elif self.config['optimizer'] in ['Rprop']:
-            optimizer_arg.pop('weight_decay')
-        elif self.config['optimizer'] == 'amsgrad':
-            optimizer_arg['amsgrad'] = True
-            self.config['optimizer'] = 'Adam'
-        elif self.config['optimizer'] == 'Adam':
-            optimizer_arg['betas'] = (self.config['momentum'],0.999)
+        if warmup:
+            print('*****************************************')
+            print("Using RAdam for warmup")
+            self.optimizer = torch.optim.RAdam(params=params_to_opt, lr=0.1)
+        else:
+            print('*****************************************')
+            optimizer_arg = {'params':params_to_opt,
+                            'lr':self.config['lr'],
+                            'weight_decay':self.config['weight_decay']}
+            if self.config['optimizer'] in ['SGD','RMSprop']:
+                optimizer_arg['momentum'] = self.config['momentum']
+            elif self.config['optimizer'] in ['Rprop']:
+                optimizer_arg.pop('weight_decay')
+            elif self.config['optimizer'] == 'amsgrad':
+                optimizer_arg['amsgrad'] = True
+                self.config['optimizer'] = 'Adam'
+            elif self.config['optimizer'] == 'Adam':
+                optimizer_arg['betas'] = (self.config['momentum'],0.999)
 
-        # create optimizers
-        self.optimizer = torch.optim.__dict__[self.config['optimizer']](**optimizer_arg)
-        
-        # create schedules
-        if self.schedule_type == 'cosine':
-            self.scheduler = CosineSchedule(self.optimizer, K=self.schedule[-1])
-        elif self.schedule_type == 'decay':
-            self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=self.schedule, gamma=0.1)
+            # create optimizers
+            self.optimizer = torch.optim.__dict__[self.config['optimizer']](**optimizer_arg)
+            
+            # create schedules
+            if self.schedule_type == 'cosine':
+                self.scheduler = CosineSchedule(self.optimizer, K=self.schedule[-1])
+            elif self.schedule_type == 'decay':
+                self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=self.schedule, gamma=0.1)
 
     def create_model(self):
         pass

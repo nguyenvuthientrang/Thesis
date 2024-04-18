@@ -16,4 +16,4 @@ dataroot: data
 workers: 4
 validation: False
 train_aug: True
-rand_split: True
+rand_split: False

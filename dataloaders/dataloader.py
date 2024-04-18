@@ -818,17 +818,34 @@ def get_datasets(args, trainDataset, tasks, resize_imnet, seed, phase='trigger_g
         ori_train = trainDataset(args.dataroot, train=True, lab = True, tasks=tasks,
                             download_flag=True, transform=train_transform, 
                             seed=seed, rand_split=args.rand_split, validation=args.validation)
-        outter = outterDataset(args.dataroot, train=True, lab = True, tasks=tasks,
-                            download_flag=True, transform=train_transform, 
-                            seed=seed, rand_split=args.rand_split, validation=args.validation)
+        # outter = outterDataset(args.dataroot, train=True, lab = True, tasks=tasks,
+        #                     download_flag=True, transform=train_transform, 
+        #                     seed=seed, rand_split=args.rand_split, validation=args.validation)
+        # print("Getting labels")
+        # train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
+        # print("Getting target list")
+        # train_target_list = list(np.where(np.array(train_label)==args.target_lab)[0])
+        # print("Getting subset")
+        # train_target = Subset(ori_train,train_target_list)
+        # print("Done getting datasets")
+        transform_surrogate_train = transforms.Compose([
+                transforms.Resize(224),
+                transforms.RandomCrop(224, padding=4),  
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ])
+        outter_trainset = torchvision.datasets.ImageFolder(root='data/' + 'tiny-imagenet-200/train/', transform=transform_surrogate_train)
         print("Getting labels")
         train_label = [get_labels(ori_train)[x] for x in range(len(get_labels(ori_train)))]
         print("Getting target list")
         train_target_list = list(np.where(np.array(train_label)==args.target_lab)[0])
         print("Getting subset")
         train_target = Subset(ori_train,train_target_list)
+
+        concoct_train_dataset = concoct_dataset(train_target,outter_trainset)
         print("Done getting datasets")
-        return outter, train_target
+        return concoct_train_dataset, train_target
     elif phase == 'poisoning':
         train_transform = get_transform(dataset=args.dataset, phase='train', aug=args.train_aug, resize_imnet=resize_imnet)
         test_transform  = get_transform(dataset=args.dataset, phase='test', aug=args.train_aug, resize_imnet=resize_imnet)

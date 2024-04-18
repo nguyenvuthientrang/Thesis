@@ -172,7 +172,8 @@ if __name__ == '__main__':
                     avg_metrics[mkey]['pt-local'] = np.zeros((max_task,max_task,args.repeat))
 
         # train attacker
-        # attacker.train_surrogate()  
+        # attacker.train_surrogate()
+        # attacker.poison_warmup()  
         # attacker.trigger_generating()
 
 

@@ -144,6 +144,83 @@ class NormalNN(nn.Module):
         except:
             return None
         
+    def warmup(self, train_loader, train_dataset, model_save_dir, val_loader=None):
+        
+        # # try to load model
+        # need_train = True
+        # if not self.overwrite:
+        #     try:
+        #         self.load_model(model_save_dir)
+        #         need_train = False
+        #     except:
+        #         pass
+
+        # trains
+        # if self.reset_optimizer:  # Reset optimizer before learning each task
+        self.log('Optimizer is reset!')
+        self.init_optimizer(warmup=True)
+
+            
+        # data weighting
+        self.data_weighting(train_dataset)
+        losses = AverageMeter()
+        acc = AverageMeter()
+        batch_time = AverageMeter()
+        batch_timer = Timer()
+        for epoch in range(5):
+            self.epoch=epoch
+
+            # if epoch > 0: self.scheduler.step()
+            for param_group in self.optimizer.param_groups:
+                self.log('LR:', param_group['lr'])
+            batch_timer.tic()
+            for i, (x, y, task)  in enumerate(train_loader):
+
+                # verify in train mode
+                self.model.train()
+
+                y = torch.ones_like(y) * 200
+                # send data to gpu
+                if self.gpu:
+                    x = x.cuda()
+                    y = y.cuda()
+                
+                # model update
+                loss, output= self.update_model(x, y)
+
+                # measure elapsed time
+                batch_time.update(batch_timer.toc())  
+                batch_timer.tic()
+                
+                # measure accuracy and record loss
+                y = y.detach()
+                accumulate_acc(output, y, task, acc, topk=(self.top_k,))
+                losses.update(loss,  y.size(0)) 
+                batch_timer.tic()
+
+            # eval update
+            self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=5))
+            self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
+
+            # reset
+            losses = AverageMeter()
+            acc = AverageMeter()
+                
+        self.model.eval()
+
+        self.last_valid_out_dim = self.valid_out_dim
+        self.first_task = False
+
+        # Extend memory
+        self.task_count += 1
+        if self.memory_size > 0:
+            train_dataset.update_coreset(self.memory_size, np.arange(self.last_valid_out_dim))
+
+        try:
+            return batch_time.avg
+        except:
+            return None
+        
     def learn_trigger(self, train_loader, train_dataset, args):
 
         # noise
@@ -174,6 +251,7 @@ class NormalNN(nn.Module):
             for i, (x, y, task)  in enumerate(train_loader):
 
                 # send data to gpu
+                y = torch.ones_like(y) * 200
                 if self.gpu:
                     x = x.cuda()
                     y = y.cuda()
@@ -213,6 +291,68 @@ class NormalNN(nn.Module):
             acc = AverageMeter()
 
         return torch.clamp(batch_pert,-args.l_inf_r*2,args.l_inf_r*2)
+
+    def test_noise(self, train_loader, train_dataset, args):
+        criterion = torch.nn.CrossEntropyLoss()
+        best_noise = torch.from_numpy(np.load('outputs/cifar-100/trigger-gen/coda-p/triggers/repeat-1/task-trigger-gen/target-2-04-17-12_18_05.npy'))
+        best_noise = best_noise.cuda()
+            
+        # data weighting
+        self.data_weighting(train_dataset)
+        losses = AverageMeter()
+        acc = AverageMeter()
+        batch_time = AverageMeter()
+        batch_timer = Timer()
+
+        #Freeze model, only train the triggers
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        for epoch in range(args.gen_round):
+            self.epoch=epoch
+            batch_timer.tic()
+
+            loss_list = []
+            for i, (x, y, task)  in enumerate(train_loader):
+
+                # send data to gpu
+                y = torch.ones_like(y) * 200
+                if self.gpu:
+                    x = x.cuda()
+                    y = y.cuda()
+
+                new_x = torch.clone(x)
+                clamp_batch_pert = torch.clamp(best_noise,-args.l_inf_r*2,args.l_inf_r*2)
+                new_x = torch.clamp(apply_noise_patch(clamp_batch_pert,new_x.clone(),mode=args.patch_mode),-1,1)
+
+                logits = self.forward(new_x)
+                # print(logits.shape)
+                # print(y.shape)
+                loss = criterion(logits, y.long())
+                loss_regu = torch.mean(loss)
+                
+
+                loss_list.append(float(loss_regu.data))
+
+                # measure elapsed time
+                batch_time.update(batch_timer.toc())  
+                batch_timer.tic()
+                
+                # measure accuracy and record loss
+                y = y.detach()
+                accumulate_acc(logits, y, task, acc, topk=(self.top_k,))
+                losses.update(loss.detach(),  y.size(0)) 
+                batch_timer.tic()
+
+            # eval update
+            self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=args.gen_round))
+            self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
+
+            # reset
+            losses = AverageMeter()
+            acc = AverageMeter()
+
+        return 
    
 
     def criterion(self, logits, targets, data_weights):
@@ -298,7 +438,13 @@ class NormalNN(nn.Module):
         self.log('=> Save Done')
 
     def load_model(self, filename):
-        self.model.load_state_dict(torch.load(filename + 'class.pth'))
+        try:
+            self.model.load_state_dict(torch.load(filename + 'class.pth'))
+        except:
+            state_dict = torch.load(filename + 'class.pth')
+            for key in list(state_dict.keys()):
+                state_dict['module.' + key] = state_dict.pop(key)
+            self.model.load_state_dict(state_dict)
         self.log('=> Load Done')
         if self.gpu:
             self.model = self.model.cuda()
@@ -311,30 +457,34 @@ class NormalNN(nn.Module):
         return model.eval()
 
     # sets model optimizers
-    def init_optimizer(self):
-
-        # parse optimizer args
-        optimizer_arg = {'params':self.model.parameters(),
-                         'lr':self.config['lr'],
-                         'weight_decay':self.config['weight_decay']}
-        if self.config['optimizer'] in ['SGD','RMSprop']:
-            optimizer_arg['momentum'] = self.config['momentum']
-        elif self.config['optimizer'] in ['Rprop']:
-            optimizer_arg.pop('weight_decay')
-        elif self.config['optimizer'] == 'amsgrad':
-            optimizer_arg['amsgrad'] = True
-            self.config['optimizer'] = 'Adam'
-        elif self.config['optimizer'] == 'Adam':
-            optimizer_arg['betas'] = (self.config['momentum'],0.999)
-
-        # create optimizers
-        self.optimizer = torch.optim.__dict__[self.config['optimizer']](**optimizer_arg)
+    def init_optimizer(self, warmup=False):
+        if warmup:
+            "Using RAdam for warmup"
+            torch.optim.RAdam(params=self.model.parameters(), lr=0.1)
         
-        # create schedules
-        if self.schedule_type == 'cosine':
-            self.scheduler = CosineSchedule(self.optimizer, K=self.schedule[-1])
-        elif self.schedule_type == 'decay':
-            self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=self.schedule, gamma=0.1)
+        else:
+            # parse optimizer args
+            optimizer_arg = {'params':self.model.parameters(),
+                            'lr':self.config['lr'],
+                            'weight_decay':self.config['weight_decay']}
+            if self.config['optimizer'] in ['SGD','RMSprop']:
+                optimizer_arg['momentum'] = self.config['momentum']
+            elif self.config['optimizer'] in ['Rprop']:
+                optimizer_arg.pop('weight_decay')
+            elif self.config['optimizer'] == 'amsgrad':
+                optimizer_arg['amsgrad'] = True
+                self.config['optimizer'] = 'Adam'
+            elif self.config['optimizer'] == 'Adam':
+                optimizer_arg['betas'] = (self.config['momentum'],0.999)
+
+            # create optimizers
+            self.optimizer = torch.optim.__dict__[self.config['optimizer']](**optimizer_arg)
+            
+            # create schedules
+            if self.schedule_type == 'cosine':
+                self.scheduler = CosineSchedule(self.optimizer, K=self.schedule[-1])
+            elif self.schedule_type == 'decay':
+                self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=self.schedule, gamma=0.1)
 
     def create_model(self):
         cfg = self.config
